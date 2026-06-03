@@ -207,6 +207,7 @@ struct SearchView: View {
     @Binding var isPresented: Bool
     let onSearch: (String, Double, Double) -> Void
     @State private var text = ""
+    @State private var selectedCity: String? = nil
 
     let cities: [(name: String, lat: Double, lon: Double)] = [
         ("New York", 40.7128, -74.0060),
@@ -231,25 +232,54 @@ struct SearchView: View {
 
     var body: some View {
         NavigationView {
-            List(filtered, id: \.name) { city in
-                Button(action: {
-                    onSearch(city.name, city.lat, city.lon)
-                    isPresented = false
-                }) {
-                    HStack {
-                        Image(systemName: "location.fill")
-                            .foregroundColor(.blue)
-                        Text(city.name)
-                            .foregroundColor(.primary)
+            ZStack {
+                List(filtered, id: \.name) { city in
+                    Button(action: {
+                        selectedCity = city.name
+                        onSearch(city.name, city.lat, city.lon)
+                        // Small delay so spinner shows, then dismiss
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                            isPresented = false
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.blue)
+                            Text(city.name)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if selectedCity == city.name {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                    }
+                    .disabled(selectedCity != nil)
+                }
+                .searchable(text: $text, prompt: "Search cities")
+                .navigationTitle("Choose City")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { isPresented = false }
                     }
                 }
-            }
-            .searchable(text: $text, prompt: "Search cities")
-            .navigationTitle("Choose City")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isPresented = false }
+
+                // Full overlay spinner while loading
+                if selectedCity != nil {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.4)
+                        Text("Loading \(selectedCity ?? "")...")
+                            .foregroundColor(.white)
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                    .padding(28)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(16)
                 }
             }
         }
